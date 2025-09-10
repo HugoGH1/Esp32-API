@@ -24,7 +24,8 @@ def index():
         "endpoints": [
             "GET  /api/sensores",
             "POST /api/sensores",
-            "GET  /api/sensores/ultimo"
+            "GET  /api/sensores/ultimo",
+            "GET /api/sensores/penultimo"
         ]
     })
 
@@ -68,6 +69,10 @@ def ultimo():
     """Obtener el último dato registrado."""
     return jsonify(datos[-1] if datos else {}), (200 if datos else 204)
 
+@app.route("/api/sensores/penultimo", methods=["GET"])
+def penultimo():
+    """Obtener el penúltimo dato registrado."""
+    return jsonify(datos[-2] if len(datos) > 1 else {}), (200 if len(datos) > 1 else 204)
 
 # =======================
 #       MAIN
