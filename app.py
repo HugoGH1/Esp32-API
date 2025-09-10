@@ -38,7 +38,7 @@ def recibir_datos():
         return jsonify({"error": "Cuerpo no es JSON válido"}), 400
 
     # Valida campos requeridos
-    faltantes = [k for k in ("temperatura", "humedad") if k not in data]
+    faltantes = [k for k in ("temperatura", "humedad","luz") if k not in data]
     if faltantes:
         return jsonify({"error": "Faltan campos", "faltantes": faltantes}), 400
 
@@ -46,12 +46,14 @@ def recibir_datos():
     try:
         temperatura = float(data.get("temperatura"))
         humedad = float(data.get("humedad"))
+        luz = int(data.get("luz"))
     except (TypeError, ValueError):
-        return jsonify({"error": "temperatura y humedad deben ser numéricos"}), 400
+        return jsonify({"error": "temperatura, humedad y luz deben ser valores numéricos"}), 400
 
     registro = {
         "temperatura": temperatura,
         "humedad": humedad,
+        "luz": luz,
         "fecha": datetime.now().isoformat(timespec="seconds")
     }
     datos.append(registro)
