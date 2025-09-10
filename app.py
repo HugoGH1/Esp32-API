@@ -46,7 +46,7 @@ def recibir_datos():
     try:
         temperatura = float(data.get("temperatura"))
         humedad = float(data.get("humedad"))
-        luz = int(data.get("luz"))
+        luz = float(data.get("luz"))
     except (TypeError, ValueError):
         return jsonify({"error": "temperatura, humedad y luz deben ser valores numéricos"}), 400
 
