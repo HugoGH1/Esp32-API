@@ -1,11 +1,16 @@
+
 import torch
 import torchvision.transforms as transforms
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from PIL import Image
 
 from flask_cors import CORS
 from datetime import datetime
+
+from werkzeug.utils import secure_filename
+
+
 
 app = Flask(__name__)
 
@@ -29,6 +34,9 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Lista temporal en memoria
 datos = []
+file = None
+last_prediction = None
+last_certainty = None
 
 
 # =======================
@@ -100,12 +108,11 @@ def penultimo():
 def predict():
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
-
+    
+    global file, last_prediction, last_certainty
     file = request.files["file"]
     image = Image.open(file.stream).convert("RGB")
-    # save image
     image.save("uploaded_image.jpg")
-
     # Preprocesar
     img_tensor = transform(image).unsqueeze(0)
 
@@ -118,34 +125,37 @@ def predict():
     prediction = classes[predicted.item()]
     print(outputs)
 
-    return jsonify({
-        "prediction": prediction,
-        "confidence": float(confidence)
-    })
-
-
-@app.route("/api/predict", methods=["GET"])
-def predict_post():
-    if not(file):
-        return jsonify({"error": "No file yet"}), 400
-
-    image = Image.open(file.stream).convert("RGB")
-
-    # Preprocesar
-    img_tensor = transform(image).unsqueeze(0)
-
-    # Pasar al modelo
-    with torch.no_grad():
-        outputs = model(img_tensor)
-        _, predicted = torch.max(outputs, 1)
-        confidence = torch.softmax(outputs, dim=1)[0][predicted].item()
-
-    prediction = classes[predicted.item()]
+    last_prediction = prediction
+    last_certainty = confidence
 
     return jsonify({
         "prediction": prediction,
         "confidence": float(confidence)
     })
+
+# Nueva ruta para obtener la última predicción y la imagen
+@app.route("/api/predict/last", methods=["GET"])
+def get_last_prediction():
+    global file, last_prediction, last_certainty
+    if file is None or last_prediction is None or last_certainty is None:
+        return jsonify({"error": "No hay datos guardados"}), 404
+
+    import base64
+    from io import BytesIO
+    image = Image.open("uploaded_image.jpg").convert("RGB")
+    buffered = BytesIO()
+    image.save(buffered, format="JPEG")
+    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+    return jsonify({
+        "image_url": './uploaded_image.jpg',
+        "prediction": last_prediction,
+        "confidence": float(last_certainty)
+    })
+
+@app.route("/uploaded_image.jpg")
+def uploaded_file():
+    return send_from_directory('./', "uploaded_image.jpg")
 # =======================
 #       MAIN
 # =======================
