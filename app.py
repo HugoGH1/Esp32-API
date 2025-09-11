@@ -37,6 +37,7 @@ datos = []
 file = None
 last_prediction = None
 last_certainty = None
+changed = False
 
 
 # =======================
@@ -109,7 +110,7 @@ def predict():
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
     
-    global file, last_prediction, last_certainty
+    global file, last_prediction, last_certainty, changed
     file = request.files["file"]
     image = Image.open(file.stream).convert("RGB")
     image.save("uploaded_image.jpg")
@@ -127,6 +128,7 @@ def predict():
 
     last_prediction = prediction
     last_certainty = confidence
+    changed = True
 
     return jsonify({
         "prediction": prediction,
@@ -136,7 +138,7 @@ def predict():
 # Nueva ruta para obtener la última predicción y la imagen
 @app.route("/api/predict/last", methods=["GET"])
 def get_last_prediction():
-    global file, last_prediction, last_certainty
+    global file, last_prediction, last_certainty, changed
     if file is None or last_prediction is None or last_certainty is None:
         return jsonify({"error": "No hay datos guardados"}), 404
 
@@ -145,12 +147,16 @@ def get_last_prediction():
     image = Image.open("uploaded_image.jpg").convert("RGB")
     buffered = BytesIO()
     image.save(buffered, format="JPEG")
-    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    last_flag = changed
+    changed = False
+    # formatted confidence
+    certainty = f"{last_certainty:.2f}"
 
     return jsonify({
         "image_url": './uploaded_image.jpg',
         "prediction": last_prediction,
-        "confidence": float(last_certainty)
+        "confidence": float(certainty),
+        "changed": last_flag
     })
 
 @app.route("/uploaded_image.jpg")
