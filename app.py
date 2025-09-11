@@ -1,8 +1,28 @@
+import torch
+import torchvision.transforms as transforms
+
 from flask import Flask, request, jsonify
+from PIL import Image
+
 from flask_cors import CORS
 from datetime import datetime
 
 app = Flask(__name__)
+
+
+
+# Cargar modelo (ya entrenado y guardado con torch.save)
+model = torch.load("./resnet18_model1.pth", map_location="cpu", weights_only=False)
+model.eval()
+
+# Clases (asegúrate de que coincidan con tu entrenamiento)
+classes = ["defective", "ok"]
+
+# Transformaciones de imagen (mismo preprocesado que usaste en entrenamiento)
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+])
 
 # Habilita CORS para todas las rutas bajo /api/*
 CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -76,6 +96,56 @@ def penultimo():
     """Obtener el penúltimo dato registrado."""
     return jsonify(datos[-2] if len(datos) > 1 else {}), (200 if len(datos) > 1 else 204)
 
+@app.route("/api/predict", methods=["POST"])
+def predict():
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files["file"]
+    image = Image.open(file.stream).convert("RGB")
+    # save image
+    image.save("uploaded_image.jpg")
+
+    # Preprocesar
+    img_tensor = transform(image).unsqueeze(0)
+
+    # Pasar al modelo
+    with torch.no_grad():
+        outputs = model(img_tensor)
+        _, predicted = torch.max(outputs, 1)
+        confidence = torch.softmax(outputs, dim=1)[0][predicted].item()
+
+    prediction = classes[predicted.item()]
+    print(outputs)
+
+    return jsonify({
+        "prediction": prediction,
+        "confidence": float(confidence)
+    })
+
+
+@app.route("/api/predict", methods=["GET"])
+def predict_post():
+    if not(file):
+        return jsonify({"error": "No file yet"}), 400
+
+    image = Image.open(file.stream).convert("RGB")
+
+    # Preprocesar
+    img_tensor = transform(image).unsqueeze(0)
+
+    # Pasar al modelo
+    with torch.no_grad():
+        outputs = model(img_tensor)
+        _, predicted = torch.max(outputs, 1)
+        confidence = torch.softmax(outputs, dim=1)[0][predicted].item()
+
+    prediction = classes[predicted.item()]
+
+    return jsonify({
+        "prediction": prediction,
+        "confidence": float(confidence)
+    })
 # =======================
 #       MAIN
 # =======================
